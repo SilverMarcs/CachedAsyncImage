@@ -8,8 +8,8 @@
 import SwiftUI
 
 // Actor for thread-safe memory cache
-actor MemoryCache {
-    static let shared = MemoryCache()
+public actor MemoryCache {
+    public static let shared = MemoryCache()
     
     #if os(macOS)
     private var cache = NSCache<NSString, NSImage>()
@@ -28,7 +28,7 @@ actor MemoryCache {
         cache.setObject(image, forKey: key as NSString, cost: cost)
     }
     
-    func get(for key: String) -> NSImage? {
+    public func get(for key: String) -> NSImage? {
         cache.object(forKey: key as NSString)
     }
     #else
@@ -39,12 +39,12 @@ actor MemoryCache {
         cache.setObject(image, forKey: key as NSString, cost: cost)
     }
     
-    func get(for key: String) -> UIImage? {
+    public func get(for key: String) -> UIImage? {
         cache.object(forKey: key as NSString)
     }
     #endif
     
-    func clearCache() {
+    public func clearCache() {
         cache.removeAllObjects()
     }
 }

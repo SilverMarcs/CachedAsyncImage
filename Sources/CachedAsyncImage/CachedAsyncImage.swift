@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct CachedAsyncImage: View {
+public struct CachedAsyncImage: View {
     let url: URL
     let targetSize: CGSize
 
@@ -16,8 +16,13 @@ struct CachedAsyncImage: View {
     #else
     @State private var image: UIImage?
     #endif
+    
+    public init(url: URL, targetSize: CGSize) {
+        self.url = url
+        self.targetSize = targetSize
+    }
 
-    var body: some View {
+    public var body: some View {
         Group {
             if let image = image {
                 #if os(macOS)
@@ -30,7 +35,7 @@ struct CachedAsyncImage: View {
                 #endif
             } else {
                 Rectangle()
-                    .fill(.secondary)
+                    .fill(.background.secondary)
             }
         }
         .task(id: url) {
