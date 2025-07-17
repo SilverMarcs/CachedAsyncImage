@@ -8,7 +8,7 @@
 import SwiftUI
 
 public struct CachedAsyncImage: View {
-    let url: URL
+    let url: URL?
     let targetSize: CGSize
 
     #if os(macOS)
@@ -17,10 +17,16 @@ public struct CachedAsyncImage: View {
     @State private var image: UIImage?
     #endif
     
-    public init(url: URL, targetSize: CGSize) {
+    public init(url: URL?, targetSize: CGSize) {
         self.url = url
         self.targetSize = targetSize
     }
+
+    // Convenience initializer for String URLs
+    public init(urlString: String?, targetSize: CGSize) {
+    //     self.url = URL(string: urlString ?? "")
+    //     self.targetSize = targetSize
+    // }
 
     public var body: some View {
         Group {
@@ -39,7 +45,11 @@ public struct CachedAsyncImage: View {
             }
         }
         .task(id: url) {
-            image = try? await ImageLoader.loadAndGetImage(url: url, targetSize: targetSize)
+            if let validURL = url {
+                image = try? await ImageLoader.loadAndGetImage(url: validURL, targetSize: targetSize)
+            } else {
+                image = nil
+            }
         }
     }
 }
