@@ -23,7 +23,7 @@ public struct CachedAsyncImage: View {
     }
 
     // Convenience initializer for String URLs
-    public init(urlString: String?, targetSize: CGSize) {
+    // public init(urlString: String?, targetSize: CGSize) {
     //     self.url = URL(string: urlString ?? "")
     //     self.targetSize = targetSize
     // }
@@ -34,10 +34,11 @@ public struct CachedAsyncImage: View {
                 #if os(macOS)
                 Image(nsImage: image)
                     .resizable()
+                    // .interpolation(.none)
                 #else
                 Image(uiImage: image)
                     .resizable()
-                    .interpolation(.none)
+                    // .interpolation(.none)
                 #endif
             } else {
                 Rectangle()
