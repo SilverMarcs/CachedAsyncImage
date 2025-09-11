@@ -18,8 +18,16 @@ public actor MemoryCache {
     #endif
     
     init() {
-        cache.countLimit = 100
-        cache.totalCostLimit = 1024 * 1024 * 50 // 50 MB
+        // Initialize with default limits first
+        let defaultConfig = CacheConfiguration.default
+        cache.countLimit = defaultConfig.memoryCountLimit
+        cache.totalCostLimit = defaultConfig.memoryCostLimit
+    }
+    
+    private func updateCacheLimits() {
+        let config = CachedAsyncImageConfiguration.shared.configuration
+        cache.countLimit = config.memoryCountLimit
+        cache.totalCostLimit = config.memoryCostLimit
     }
     
     #if os(macOS)
@@ -46,5 +54,10 @@ public actor MemoryCache {
     
     public func clearCache() {
         cache.removeAllObjects()
+    }
+    
+    /// Update cache limits from current configuration
+    public func updateLimits() {
+        updateCacheLimits()
     }
 }
