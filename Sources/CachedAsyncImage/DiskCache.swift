@@ -60,21 +60,20 @@ public actor DiskCache {
     }
 
     func store(_ data: Data, for key: String) {
-        createCacheDirectoryIfNeeded() // Check before operation
+        createCacheDirectoryIfNeeded()
         guard let cacheDirectory = cacheDirectory else { return }
-        let fileURL = cacheDirectory.appendingPathComponent(key)
+        let fileURL = cacheDirectory.appendingPathComponent(sha256Hex(key))
         try? data.write(to: fileURL, options: .atomic)
-        
-        // Check cache size periodically (not on every store for performance)
-        if Int.random(in: 0...10) == 0 { // Check ~10% of the time
+
+        if Int.random(in: 0...10) == 0 {
             checkDiskCacheSize()
         }
     }
-    
+
     func retrieve(for key: String) -> Data? {
-        createCacheDirectoryIfNeeded() // Check before operation
+        createCacheDirectoryIfNeeded()
         guard let cacheDirectory = cacheDirectory else { return nil }
-        let fileURL = cacheDirectory.appendingPathComponent(key)
+        let fileURL = cacheDirectory.appendingPathComponent(sha256Hex(key))
         return try? Data(contentsOf: fileURL)
     }
     
@@ -88,4 +87,13 @@ public actor DiskCache {
     public func cleanupIfNeeded() {
         checkDiskCacheSize()
     }
+}
+
+import CryptoKit
+
+@inline(__always)
+func sha256Hex(_ string: String) -> String {
+    let data = Data(string.utf8)
+    let digest = SHA256.hash(data: data)
+    return digest.compactMap { String(format: "%02x", $0) }.joined()
 }
