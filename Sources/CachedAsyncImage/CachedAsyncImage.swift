@@ -27,14 +27,13 @@ import SwiftUI
 /// ```swift
 /// // In your App.swift or AppDelegate
 /// CachedAsyncImageConfiguration.configure(
-///     memoryCountLimit: 150,        // Max 150 images in memory
-///     memoryCostLimitMB: 100,       // Max 100 MB memory usage
-///     diskCacheLimitMB: 500         // Max 500 MB disk cache
-/// )
+///     memoryCostLimitMB: 100,       // Max ~100 MB memory usage
+///     diskCacheLimitMB: 300         // Max 300 MB disk cache
+/// ) 
 /// ```
 ///
 /// ## Default Settings
-/// - Memory: 100 images, 50 MB limit
+/// - Memory: 50 MB cost-based limit
 /// - Disk: 200 MB limit
 /// - Automatic cleanup when limits are exceeded
 public struct CachedAsyncImage: View {
@@ -52,23 +51,15 @@ public struct CachedAsyncImage: View {
         self.targetSize = targetSize
     }
 
-    // Convenience initializer for String URLs
-    // public init(urlString: String?, targetSize: CGSize) {
-    //     self.url = URL(string: urlString ?? "")
-    //     self.targetSize = targetSize
-    // }
-
     public var body: some View {
         Group {
             if let image = image {
                 #if os(macOS)
                 Image(nsImage: image)
                     .resizable()
-                    // .interpolation(.none)
                 #else
                 Image(uiImage: image)
                     .resizable()
-                    // .interpolation(.none)
                 #endif
             } else {
                 Rectangle()

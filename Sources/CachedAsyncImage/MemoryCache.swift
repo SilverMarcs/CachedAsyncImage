@@ -20,13 +20,11 @@ public actor MemoryCache {
     init() {
         // Initialize with default limits first
         let defaultConfig = CacheConfiguration.default
-        cache.countLimit = defaultConfig.memoryCountLimit
         cache.totalCostLimit = defaultConfig.memoryCostLimit
     }
     
     private func updateCacheLimits() {
         let config = CachedAsyncImageConfiguration.shared.configuration
-        cache.countLimit = config.memoryCountLimit
         cache.totalCostLimit = config.memoryCostLimit
     }
     
