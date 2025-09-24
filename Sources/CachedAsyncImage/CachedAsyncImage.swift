@@ -8,62 +8,39 @@
 import SwiftUI
 
 /// A SwiftUI view that loads and displays images asynchronously with automatic caching.
-///
-/// `CachedAsyncImage` provides efficient image loading with both memory and disk caching.
-/// The cache can be globally configured to suit your app's needs.
-///
-/// ## Basic Usage
-/// ```swift
-/// CachedAsyncImage(
-///     url: URL(string: "https://example.com/image.jpg"),
-///     targetSize: CGSize(width: 200, height: 200)
-/// )
-/// .frame(width: 200, height: 200)
-/// ```
-///
-/// ## Global Cache Configuration
-/// Configure cache settings in your app's initialization code:
-///
-/// ```swift
-/// // In your App.swift or AppDelegate
-/// CachedAsyncImageConfiguration.configure(
-///     memoryCostLimitMB: 100,       // Max ~100 MB memory usage
-///     diskCacheLimitMB: 300         // Max 300 MB disk cache
-/// ) 
-/// ```
-///
-/// ## Default Settings
-/// - Memory: 50 MB cost-based limit
-/// - Disk: 200 MB limit
-/// - Automatic cleanup when limits are exceeded
-public struct CachedAsyncImage: View {
+public struct CachedAsyncImage<Placeholder: View>: View {
     let url: URL?
-    let targetSize: CGSize
+    let targetSize: Int
+    let placeholder: () -> Placeholder
 
     #if os(macOS)
     @State private var image: NSImage?
     #else
     @State private var image: UIImage?
     #endif
-    
-    public init(url: URL?, targetSize: CGSize) {
+
+    public init(
+        url: URL?,
+        targetSize: Int,
+        @ViewBuilder placeholder: @escaping () -> Placeholder = {
+            Rectangle().fill(.background.secondary)
+        }
+    ) {
         self.url = url
         self.targetSize = targetSize
+        self.placeholder = placeholder
     }
 
     public var body: some View {
         Group {
             if let image = image {
                 #if os(macOS)
-                Image(nsImage: image)
-                    .resizable()
+                Image(nsImage: image).resizable()
                 #else
-                Image(uiImage: image)
-                    .resizable()
+                Image(uiImage: image).resizable()
                 #endif
             } else {
-                Rectangle()
-                    .fill(.background.secondary)
+                placeholder()
             }
         }
         .task(id: url) {

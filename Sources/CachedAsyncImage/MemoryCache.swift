@@ -7,55 +7,57 @@
 
 import SwiftUI
 
-// Actor for thread-safe memory cache
 public actor MemoryCache {
     public static let shared = MemoryCache()
-    
+
     #if os(macOS)
     private var cache = NSCache<NSString, NSImage>()
     #else
     private var cache = NSCache<NSString, UIImage>()
     #endif
-    
+
     init() {
-        // Initialize with default limits first
         let defaultConfig = CacheConfiguration.default
         cache.totalCostLimit = defaultConfig.memoryCostLimit
     }
-    
-    private func updateCacheLimits() {
-        let config = CachedAsyncImageConfiguration.shared.configuration
+
+    // Now async because it awaits the configuration actor
+    public func updateLimits() async {
+        let config = await CachedAsyncImageConfiguration.shared.configuration
         cache.totalCostLimit = config.memoryCostLimit
     }
-    
+
     #if os(macOS)
-    func insert(_ image: NSImage, for key: String) {
-        let cost = Int(image.size.width * image.size.height * 4)
-        cache.setObject(image, forKey: key as NSString, cost: cost)
-    }
-    
-    public func get(for key: String) -> NSImage? {
-        cache.object(forKey: key as NSString)
+    private func cost(for image: NSImage) -> Int {
+        if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            return cg.bytesPerRow * cg.height
+        }
+        let w = Int(image.size.width * 2)
+        let h = Int(image.size.height * 2)
+        return w * h * 4
     }
     #else
-    func insert(_ image: UIImage, for key: String) {
-        let bytesPerPixel = 4
-        let imageSize = image.size
-        let cost = Int(imageSize.width * imageSize.height * CGFloat(bytesPerPixel))
-        cache.setObject(image, forKey: key as NSString, cost: cost)
-    }
-    
-    public func get(for key: String) -> UIImage? {
-        cache.object(forKey: key as NSString)
+    private func cost(for image: UIImage) -> Int {
+        if let cg = image.cgImage {
+            return cg.bytesPerRow * cg.height
+        }
+        let scale = image.scale
+        let w = Int(image.size.width * scale)
+        let h = Int(image.size.height * scale)
+        return w * h * 4
     }
     #endif
-    
+
+    func insert(_ image: PlatformImage, for url: URL) {
+        let key = cacheKey(for: url) as NSString
+        cache.setObject(image, forKey: key, cost: cost(for: image))
+    }
+
+    func get(for url: URL) -> PlatformImage? {
+        cache.object(forKey: cacheKey(for: url) as NSString)
+    }
+
     public func clearCache() {
         cache.removeAllObjects()
-    }
-    
-    /// Update cache limits from current configuration
-    public func updateLimits() {
-        updateCacheLimits()
     }
 }

@@ -10,90 +10,81 @@ import Foundation
 public actor DiskCache {
     public static let shared = DiskCache()
     private let fileManager = FileManager.default
-    
+
     private var cacheDirectory: URL? {
         fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first?
             .appendingPathComponent("ImageCacher")
     }
-    
+
     private func createCacheDirectoryIfNeeded() {
         guard let cacheDirectory = cacheDirectory else { return }
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
     }
-    
-    private func checkDiskCacheSize() {
+
+    private func fileURL(for url: URL) -> URL? {
+        guard let dir = cacheDirectory else { return nil }
+        return dir.appendingPathComponent(cacheKey(for: url))
+    }
+
+    // Now async since it awaits the configuration actor
+    private func checkDiskCacheSize() async {
         guard let cacheDirectory = cacheDirectory else { return }
-        let config = CachedAsyncImageConfiguration.shared.configuration
-        
+        let config = await CachedAsyncImageConfiguration.shared.configuration
+
         do {
-            let files = try fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey], options: [])
-            
+            let files = try fileManager.contentsOfDirectory(
+                at: cacheDirectory,
+                includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey],
+                options: []
+            )
+
             var totalSize: Int64 = 0
             var fileInfos: [(url: URL, size: Int64, date: Date)] = []
-            
+
             for fileURL in files {
                 let attributes = try fileURL.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
                 let size = Int64(attributes.fileSize ?? 0)
-                let date = attributes.contentModificationDate ?? Date.distantPast
-                
+                let date = attributes.contentModificationDate ?? .distantPast
                 totalSize += size
                 fileInfos.append((url: fileURL, size: size, date: date))
             }
-            
+
             if totalSize > config.diskCacheLimit {
-                // Sort by modification date (oldest first)
                 fileInfos.sort { $0.date < $1.date }
-                
-                // Remove oldest files until we're under the limit
                 var sizeToRemove = totalSize - Int64(config.diskCacheLimit)
-                for fileInfo in fileInfos {
-                    if sizeToRemove <= 0 { break }
-                    
-                    try? fileManager.removeItem(at: fileInfo.url)
-                    sizeToRemove -= fileInfo.size
+                for info in fileInfos where sizeToRemove > 0 {
+                    try? fileManager.removeItem(at: info.url)
+                    sizeToRemove -= info.size
                 }
             }
         } catch {
-            // If we can't manage the cache size, we'll just continue
             print("Failed to manage disk cache size: \(error)")
         }
     }
 
-    func store(_ data: Data, for key: String) {
+    public func store(_ data: Data, for url: URL) {
         createCacheDirectoryIfNeeded()
-        guard let cacheDirectory = cacheDirectory else { return }
-        let fileURL = cacheDirectory.appendingPathComponent(sha256Hex(key))
+        guard let fileURL = fileURL(for: url) else { return }
         try? data.write(to: fileURL, options: .atomic)
 
         if Int.random(in: 0...10) == 0 {
-            checkDiskCacheSize()
+            Task { await checkDiskCacheSize() }
         }
     }
 
-    func retrieve(for key: String) -> Data? {
+    public func retrieve(for url: URL) -> Data? {
         createCacheDirectoryIfNeeded()
-        guard let cacheDirectory = cacheDirectory else { return nil }
-        let fileURL = cacheDirectory.appendingPathComponent(sha256Hex(key))
+        guard let fileURL = fileURL(for: url) else { return nil }
         return try? Data(contentsOf: fileURL)
     }
-    
+
     public func clearCache() {
         guard let cacheDirectory = cacheDirectory else { return }
         try? fileManager.removeItem(at: cacheDirectory)
         createCacheDirectoryIfNeeded()
     }
-    
-    /// Manually check and clean disk cache to stay within size limits
-    public func cleanupIfNeeded() {
-        checkDiskCacheSize()
+
+    public func cleanupIfNeeded() async {
+        await checkDiskCacheSize()
     }
-}
-
-import CryptoKit
-
-@inline(__always)
-func sha256Hex(_ string: String) -> String {
-    let data = Data(string.utf8)
-    let digest = SHA256.hash(data: data)
-    return digest.compactMap { String(format: "%02x", $0) }.joined()
 }
